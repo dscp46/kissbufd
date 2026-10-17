@@ -1,0 +1,60 @@
+# kissbufd.conf - sample configuration for kissbufd(8), see kissbufd.conf(5).
+#
+# Copy to @SYSCONFDIR@/kissbufd/<instance>.conf (e.g. tnc0.conf) and edit.
+# Syntax: one "key = value" per line, '#' starts a comment.
+# Command line options override settings from this file.
+
+# --- TNC serial port --------------------------------------------------------
+
+# Serial device of the TNC (required). On Linux, a /dev/serial/by-id/ path
+# survives USB re-enumeration.
+device = /dev/ttyACM0
+
+# Serial speed and framing (<data bits><N|E|O><stop bits>).
+baud = 57600
+serial_mode = 8N1
+
+# Assert DTR/RTS when opening the port.
+dtr = yes
+
+# Seconds between attempts to reopen the port after the link is lost.
+reopen_interval = 2
+
+# --- TNC transmit buffer ----------------------------------------------------
+
+# TNC transmit buffer size in raw KISS bytes (required, 64..1048576).
+buffer_size = 32768
+
+# Fill the TNC buffer up to this share of buffer_size. Frames larger than
+# this limit are dropped as giants.
+fill_percent = 95
+
+# Seconds to wait for an ACKMODE ACK before a frame is considered lost.
+ack_timeout = 60
+
+# Bytes of frames held while waiting for room on the TNC; frames arriving
+# when this queue is full are dropped.
+queue_limit = 262144
+
+# --- Host side --------------------------------------------------------------
+
+# Symlink pointing at the pseudo-terminal, for kissattach(8) and friends:
+#   kissattach @RUNDIR@/kissbufd/tnc0 radio
+# Leave empty for no symlink.
+pty_link = @RUNDIR@/kissbufd/tnc0
+
+# --- Process ----------------------------------------------------------------
+
+# Detach into the background. Service managers start kissbufd with -f
+# (systemd, launchd) or -D (BSD rc.d), which override this setting.
+daemon = no
+
+# Log to syslog (facility daemon) instead of standard error.
+# Daemon mode always logs to syslog.
+syslog = no
+
+# Write the process ID to this file (empty: none).
+pidfile =
+
+# 0: warnings and notices, 1: informational, 2: per-frame debug.
+verbose = 0

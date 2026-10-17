@@ -1,0 +1,7 @@
+*.o
+debian/.debhelper
+debian/debhelper-build-stamp
+debian/files
+debian/kissbufd.debhelper.log
+debian/kissbufd.substvars
+debian/kissbufd

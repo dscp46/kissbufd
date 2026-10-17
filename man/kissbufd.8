@@ -1,0 +1,206 @@
+.\" SPDX-License-Identifier: MIT
+.Dd October 16, 2026
+.Dt KISSBUFD 8
+.Os
+.Sh NAME
+.Nm kissbufd
+.Nd ACKMODE transmit buffer manager for KISS TNCs without flow control
+.Sh SYNOPSIS
+.Nm
+.Op Fl DfnRSVhv
+.Op Fl c Ar config
+.Op Fl s Ar device
+.Op Fl B Ar bytes
+.Op Fl b Ar baud
+.Op Fl m Ar mode
+.Op Fl F Ar percent
+.Op Fl p Ar link
+.Op Fl t Ar seconds
+.Op Fl r Ar seconds
+.Op Fl Q Ar bytes
+.Op Fl P Ar pidfile
+.Sh DESCRIPTION
+.Nm
+sits between a host KISS program such as
+.Xr kissattach 8
+and a TNC that supports the KISS ACKMODE extension (command 0x0C) but has
+no hardware flow control, such as the NinoTNC.
+It exposes a pseudo-terminal to the host and talks to the TNC over a
+serial port, keeping the TNC transmit buffer as full as possible without
+overflowing it.
+.Pp
+Every data frame is sent to the TNC as an ACKMODE frame carrying a unique
+16-bit ID from an internal counter.
+The TNC returns that ID when the frame has left over the air.
+.Nm
+keeps a running total of the raw KISS bytes (FEND delimiters, type byte,
+ID, escapes and payload) of frames still on the TNC, and only releases the
+next frame when it fits within the fill limit
+.Pq Ar percent No of the buffer size .
+Frames larger than the fill limit are dropped as giants.
+.Pp
+Plain KISS data frames from the host are tracked internally and their
+ACKs are not relayed.
+ACKMODE frames from the host keep their ID in a translation table; the
+ACK is relayed to the host with the host's original ID.
+Wire IDs never collide with a frame still in flight and never contain the
+bytes 0xC0 or 0xDB.
+IDs are handled in network byte order: the first byte on the wire is the
+most significant.
+.Pp
+Other KISS commands (TXDELAY, persistence, SetHardware, ...) are passed
+through unchanged, in order of arrival relative to data frames.
+Frames received from the TNC are relayed unchanged; ACKs for unknown IDs
+are discarded.
+.Pp
+If an ACK has not arrived within the ACK timeout, the frame is considered
+lost and a minor alarm is logged; nothing is sent to the host.
+If the serial link is lost (USB unplug, device error), all frames on the
+TNC are considered lost, frames queued on the host side are held, and the
+device is reopened periodically.
+.Pp
+Every setting can also be given in a configuration file, see
+.Xr kissbufd.conf 5 .
+Command line options override the file.
+.Sh OPTIONS
+The configuration file key of each option is given in brackets.
+.Bl -tag -width Ds
+.It Fl c Ar config
+Read settings from
+.Ar config .
+.It Fl n
+Check the configuration, print a summary and exit.
+.It Fl s Ar device
+TNC serial device.
+.Bq device
+.It Fl B Ar bytes
+TNC transmit buffer size, in raw KISS bytes, 64 to 1048576.
+.Bq buffer_size
+.It Fl b Ar baud
+Serial speed; default 57600.
+.Bq baud
+.It Fl m Ar mode
+Serial framing as data bits, parity and stop bits, e.g.
+.Cm 8N1
+(default),
+.Cm 7E1
+or
+.Cm 8N2 .
+.Bq serial_mode
+.It Fl R
+Drop DTR and RTS when opening the port; by default they are asserted.
+.Bq dtr = no
+.It Fl F Ar percent
+Fill the TNC buffer up to this share of the buffer size; default 95.
+.Bq fill_percent
+.It Fl p Ar link
+Create a symbolic link to the pty slave at
+.Ar link ,
+replacing an existing symlink and creating missing parent directories.
+It is removed on exit.
+.Bq pty_link
+.It Fl t Ar seconds
+ACK timeout; default 60.
+.Bq ack_timeout
+.It Fl r Ar seconds
+Serial reopen interval after link loss; default 2.
+.Bq reopen_interval
+.It Fl Q Ar bytes
+Limit of the host-side queue of frames waiting for room on the TNC.
+Frames arriving while it is full are dropped; default 262144.
+.Bq queue_limit
+.It Fl D
+Detach and run as a daemon; implies syslog logging.
+.Bq daemon = yes
+.It Fl f
+Stay in the foreground, overriding
+.Cm daemon
+in the configuration file.
+.Bq daemon = no
+.It Fl S
+Log to
+.Xr syslog 3
+(facility daemon) instead of standard error.
+.Bq syslog = yes
+.It Fl P Ar pidfile
+Write the process ID to
+.Ar pidfile ;
+it is removed on exit.
+.Bq pidfile
+.It Fl v
+Increase verbosity: once for informational messages, twice for per-frame
+debug output.
+.Bq verbose
+.It Fl V
+Print the version and exit.
+.It Fl h
+Print a usage summary and exit.
+.El
+.Pp
+In the foreground, the pty slave name is printed on standard output at
+startup.
+.Sh SIGNALS
+.Bl -tag -width SIGTERM
+.It Dv SIGUSR1
+Log statistics: frames, bytes, ACKs, timeouts, drops and peak buffer use.
+.It Dv SIGTERM , Dv SIGINT
+Exit cleanly.
+.El
+.Sh SERVICE MANAGEMENT
+.Ss Linux (systemd)
+A template unit runs one instance per configuration file
+.Pa @SYSCONFDIR@/kissbufd/ Ns Ar instance Ns Pa .conf :
+.Bd -literal -offset indent
+cp @DOCDIR@/kissbufd.conf.sample @SYSCONFDIR@/kissbufd/tnc0.conf
+systemctl enable --now kissbufd@tnc0
+.Ed
+.Ss FreeBSD
+.Bd -literal -offset indent
+sysrc kissbufd_enable=YES
+sysrc kissbufd_profiles="tnc0 tnc1"   # optional, one .conf each
+service kissbufd start
+.Ed
+.Ss OpenBSD
+.Bd -literal -offset indent
+rcctl enable kissbufd
+rcctl start kissbufd
+.Ed
+.Ss NetBSD
+Set
+.Va kissbufd=YES
+in
+.Xr rc.conf 5 .
+.Ss macOS
+.Bd -literal -offset indent
+launchctl bootstrap system /Library/LaunchDaemons/kissbufd.plist
+.Ed
+.Sh FILES
+.Bl -tag -width Ds -compact
+.It Pa @SYSCONFDIR@/kissbufd/*.conf
+configuration files
+.It Pa @DOCDIR@/kissbufd.conf.sample
+annotated sample configuration
+.It Pa @RUNDIR@/kissbufd/
+pty symlinks and pid files used by the service files
+.El
+.Sh EXIT STATUS
+0 on normal exit, 1 on a runtime error, 2 on a usage or configuration
+error.
+.Sh EXAMPLES
+A TNC with a 32 kB buffer, attached as AX.25 port
+.Dq radio :
+.Bd -literal -offset indent
+kissbufd -s /dev/ttyACM0 -B 32768 -p @RUNDIR@/kissbufd/tnc0 &
+kissattach @RUNDIR@/kissbufd/tnc0 radio
+.Ed
+.Pp
+The same from a configuration file, with debug output:
+.Bd -literal -offset indent
+kissbufd -c @SYSCONFDIR@/kissbufd/tnc0.conf -vv
+.Ed
+.Sh SEE ALSO
+.Xr kissbufd.conf 5 ,
+.Xr kissattach 8
+.Sh BUGS
+A TNC reset that does not drop the serial link cannot be detected; frames
+lost that way are reclaimed by the ACK timeout.

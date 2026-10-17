@@ -1,0 +1,24 @@
+#!/usr/bin/make -f
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+PATHS = PREFIX=/usr SYSCONFDIR=/etc RUNDIR=/run \
+	SYSTEMDUNITDIR=/usr/lib/systemd/system
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	dh_auto_build -- $(PATHS)
+
+override_dh_auto_install:
+	$(MAKE) install install-systemd DESTDIR=$(CURDIR)/debian/kissbufd $(PATHS)
+	# The license is in debian/copyright.
+	rm -f $(CURDIR)/debian/kissbufd/usr/share/doc/kissbufd/LICENSE
+
+override_dh_installsystemd:
+	# Template unit: instances are enabled by the admin (kissbufd@tnc0).
+	dh_installsystemd --no-enable --no-start
+
+override_dh_compress:
+	# Keep the sample configuration directly copyable.
+	dh_compress -X.sample

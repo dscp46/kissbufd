@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+# PROVIDE: kissbufd
+# REQUIRE: DAEMON
+# KEYWORD: shutdown
+#
+# Add to /etc/rc.conf (or use sysrc):
+#
+#   kissbufd_enable="YES"
+#   kissbufd_config="@SYSCONFDIR@/kissbufd/kissbufd.conf"   (default)
+#
+# Several TNCs: one config file per profile, @SYSCONFDIR@/kissbufd/<profile>.conf
+#
+#   kissbufd_profiles="tnc0 tnc1"
+#
+# "service kissbufd configtest [profile]" checks the configuration.
+
+. /etc/rc.subr
+
+name=kissbufd
+rcvar=kissbufd_enable
+desc="KISS TNC transmit buffer manager"
+
+load_rc_config $name
+
+: ${kissbufd_enable:="NO"}
+: ${kissbufd_config:="@SYSCONFDIR@/kissbufd/kissbufd.conf"}
+
+if [ -n "$2" ]; then
+	profile="$2"
+	if [ -n "${kissbufd_profiles}" ]; then
+		kissbufd_config="@SYSCONFDIR@/kissbufd/${profile}.conf"
+		pidfile="@RUNDIR@/kissbufd/${profile}.pid"
+	else
+		echo "$0: extra argument ignored"
+	fi
+else
+	if [ -n "${kissbufd_profiles}" -a -n "$1" ]; then
+		for profile in ${kissbufd_profiles}; do
+			echo "===> kissbufd profile: ${profile}"
+			$0 $1 ${profile}
+			retcode="$?"
+			if [ "0${retcode}" -ne 0 ]; then
+				failed="${profile} (${retcode}) ${failed:-}"
+			else
+				success="${profile} ${success:-}"
+			fi
+		done
+		[ -z "${failed}" ] || exit 1
+		exit 0
+	fi
+	pidfile="@RUNDIR@/kissbufd/kissbufd.pid"
+fi
+
+command="@SBINDIR@/kissbufd"
+command_args="-D -c ${kissbufd_config} -P ${pidfile}"
+required_files="${kissbufd_config}"
+extra_commands="configtest stats"
+configtest_cmd="${command} -n -c ${kissbufd_config}"
+stats_cmd="kissbufd_stats"
+start_precmd="kissbufd_precmd"
+
+kissbufd_precmd()
+{
+	install -d -m 0755 @RUNDIR@/kissbufd
+	${command} -n -c ${kissbufd_config} >/dev/null
+}
+
+kissbufd_stats()
+{
+	[ -r "${pidfile}" ] && kill -USR1 $(cat "${pidfile}")
+}
+
+run_rc_command "$1"

@@ -1,0 +1,42 @@
+#!/bin/sh
+#
+# PROVIDE: kissbufd
+# REQUIRE: DAEMON
+# KEYWORD: shutdown
+#
+# Add to /etc/rc.conf:
+#
+#   kissbufd=YES
+#   kissbufd_config="@SYSCONFDIR@/kissbufd/kissbufd.conf"   (default)
+#
+# For several TNCs, copy this script to e.g. /etc/rc.d/kissbufd_tnc1 and
+# change "name" below; set kissbufd_tnc1=YES and kissbufd_tnc1_config=...
+
+$_rc_subr_loaded . /etc/rc.subr
+
+name="kissbufd"
+rcvar=$name
+command="@SBINDIR@/kissbufd"
+extra_commands="configtest"
+configtest_cmd="kissbufd_configtest"
+start_precmd="kissbufd_precmd"
+
+load_rc_config $name
+
+eval config=\${${name}_config:-@SYSCONFDIR@/kissbufd/${name}.conf}
+pidfile="@RUNDIR@/kissbufd/${name}.pid"
+command_args="-D -c ${config} -P ${pidfile}"
+required_files="${config}"
+
+kissbufd_configtest()
+{
+	${command} -n -c ${config}
+}
+
+kissbufd_precmd()
+{
+	mkdir -p @RUNDIR@/kissbufd
+	${command} -n -c ${config} >/dev/null
+}
+
+run_rc_command "$1"

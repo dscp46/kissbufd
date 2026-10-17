@@ -1,0 +1,127 @@
+.\" SPDX-License-Identifier: MIT
+.Dd October 16, 2026
+.Dt KISSBUFD.CONF 5
+.Os
+.Sh NAME
+.Nm kissbufd.conf
+.Nd kissbufd configuration file
+.Sh DESCRIPTION
+.Xr kissbufd 8
+reads its settings from the file given with
+.Fl c .
+Options given on the command line override settings in the file.
+.Pp
+Each line holds one setting:
+.Bd -literal -offset indent
+key = value
+.Ed
+.Pp
+Whitespace around the key and the value is ignored.
+Blank lines and lines starting with
+.Ql #
+or
+.Ql \&;
+are ignored; an unquoted
+.Ql #
+that follows whitespace starts a trailing comment.
+A value may be enclosed in double or single quotes to keep spaces or
+.Ql # .
+Unknown keys and invalid values are errors, reported with the file name
+and line number.
+If a key is given more than once, the last one wins.
+.Pp
+Boolean values are
+.Cm yes ,
+.Cm true ,
+.Cm on ,
+.Cm 1
+or
+.Cm no ,
+.Cm false ,
+.Cm off ,
+.Cm 0 .
+.Sh SETTINGS
+.Bl -tag -width Ds
+.It Cm device No = Ar path
+TNC serial device.
+Required, here or with
+.Fl s .
+.It Cm baud No = Ar speed
+Serial speed: 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200 and,
+where the system supports them, 230400, 460800, 500000, 921600, 1000000.
+Default 57600.
+.It Cm serial_mode No = Ar mode
+Data bits (5 to 8), parity
+.Pq Cm N , E , O
+and stop bits (1 or 2), e.g.
+.Cm 8N1 .
+Default 8N1.
+.It Cm dtr No = Ar bool
+Assert DTR and RTS when opening the port.
+Default yes.
+.It Cm reopen_interval No = Ar seconds
+Delay between attempts to reopen the serial port after the link is lost,
+1 to 3600.
+Default 2.
+.It Cm buffer_size No = Ar bytes
+TNC transmit buffer size in raw KISS bytes, 64 to 1048576.
+Required, here or with
+.Fl B .
+.It Cm fill_percent No = Ar percent
+Fill the TNC buffer up to this share of
+.Cm buffer_size ,
+1 to 100.
+Frames larger than the resulting limit are dropped.
+Default 95.
+.It Cm ack_timeout No = Ar seconds
+Time to wait for an ACKMODE ACK before a frame is considered lost and a
+minor alarm is logged, 1 to 86400.
+Default 60.
+.It Cm queue_limit No = Ar bytes
+Bytes of host frames held while waiting for room on the TNC, 1024 to
+67108864.
+Frames arriving while the queue is full are dropped.
+Default 262144.
+.It Cm pty_link No = Ar path
+Create a symbolic link to the pseudo-terminal at
+.Ar path .
+Empty for none.
+Default none.
+.It Cm daemon No = Ar bool
+Detach into the background, logging to syslog.
+Default no.
+Service files override this with
+.Fl f
+or
+.Fl D .
+.It Cm syslog No = Ar bool
+Log to syslog (facility daemon) instead of standard error.
+Default no.
+.It Cm pidfile No = Ar path
+Write the process ID to
+.Ar path .
+Empty for none.
+Default none.
+.It Cm verbose No = Ar level
+0 for warnings and notices, 1 for informational messages, 2 for
+per-frame debug output.
+Default 0.
+.El
+.Sh FILES
+.Bl -tag -width Ds -compact
+.It Pa @SYSCONFDIR@/kissbufd/*.conf
+configuration files used by the service files
+.It Pa @DOCDIR@/kissbufd.conf.sample
+annotated sample
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+# @SYSCONFDIR@/kissbufd/tnc0.conf
+device      = /dev/serial/by-id/usb-<your-tnc>-if00
+baud        = 57600
+buffer_size = 32768
+pty_link    = @RUNDIR@/kissbufd/tnc0
+verbose     = 1
+.Ed
+.Sh SEE ALSO
+.Xr kissbufd 8

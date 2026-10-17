@@ -1,0 +1,24 @@
+Source: kissbufd
+Section: hamradio
+Priority: optional
+Maintainer: Celestine GRAMAIZE (F4HOF) <celestine+dev@gramaize.eu>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: kissbufd
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: ax25-tools
+Description: Transmit buffer manager for KISS TNCs with ACKmode flow control
+ kissbufd sits between a host KISS program such as kissattach and a TNC
+ that supports the KISS ACKMODE extension but has no hardware flow
+ control, such as the NinoTNC. It exposes a pseudo-terminal to the host.
+ .
+ Frames are released to the TNC only while the raw KISS bytes on the TNC
+ stay under a configurable share of its buffer; ACKMODE acknowledgements
+ provide the backpressure. Host ACKMODE frames are passed through via an
+ ID translation table, plain KISS frames are tracked internally.
+ .
+ A systemd template unit runs one instance per configuration file in
+ /etc/kissbufd/.

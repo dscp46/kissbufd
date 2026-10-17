@@ -1,0 +1,23 @@
+#!/bin/ksh
+#
+# kissbufd - KISS TNC transmit buffer manager
+#
+#   rcctl enable kissbufd
+#   rcctl start kissbufd
+#
+# For several TNCs:
+#   ln -s /etc/rc.d/kissbufd /etc/rc.d/kissbufd_tnc1
+#   rcctl set kissbufd_tnc1 flags "-D -c @SYSCONFDIR@/kissbufd/tnc1.conf"
+#   rcctl enable kissbufd_tnc1
+
+daemon="@SBINDIR@/kissbufd"
+daemon_flags="-D -c @SYSCONFDIR@/kissbufd/kissbufd.conf"
+
+. /etc/rc.d/rc.subr
+
+rc_pre() {
+	install -d -m 0755 @RUNDIR@/kissbufd
+	${daemon} -n ${daemon_flags} >/dev/null
+}
+
+rc_cmd $1

@@ -1,0 +1,15 @@
+[Unit]
+Description=KISS TNC transmit buffer manager (%i)
+Documentation=man:kissbufd(8) man:kissbufd.conf(5)
+
+[Service]
+Type=simple
+ExecStartPre=@SBINDIR@/kissbufd -n -c @SYSCONFDIR@/kissbufd/%i.conf
+ExecStart=@SBINDIR@/kissbufd -f -c @SYSCONFDIR@/kissbufd/%i.conf
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=kissbufd
+RuntimeDirectoryPreserve=yes
+
+[Install]
+WantedBy=multi-user.target
